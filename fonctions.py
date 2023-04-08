@@ -15,15 +15,15 @@ import pickle
 
 
 
-data_depot = pd.read_csv('data_depot.csv')
-data_client_index = pd.read_csv('data_clients.csv')
+data_depot = pd.read_csv('data/data_depot.csv')
+data_client_index = pd.read_csv('data/data_clients.csv')
 
 
 
-with open('distance_matrix.pickle', 'rb') as handle:
+with open('data/distance_matrix.pickle', 'rb') as handle:
     distance_matrix = pickle.load(handle)
 
-with open('times.pickle', 'rb') as handle:
+with open('data/times.pickle', 'rb') as handle:
     times = pickle.load(handle)
 
 
