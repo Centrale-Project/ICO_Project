@@ -1,29 +1,32 @@
 import pandas as pd
 from os import listdir
 from os.path import isfile, join
-fichiers = [f for f in listdir('data') if isfile(join('data', f))]
 import numpy as np
 import scipy 
 from scipy.spatial.distance import pdist , cdist
-#import sklearn
-#from sklearn.metrics import pairwise_distances_chunked 
+
 import matplotlib.pyplot as plt
-#import sklearn
+ 
 from math import sin, cos, sqrt, atan2, radians
-#import folium
+ 
 import pickle
+import os 
+import sys
+
+parent_dir = os.path.dirname(sys.path[0])
+ 
+
+data_depot = pd.read_csv(os.path.join(parent_dir, 'data/data_depot.csv'))
+data_client_index = pd.read_csv(os.path.join(parent_dir, 'data/data_clients.csv'))
 
 
 
-data_depot = pd.read_csv('data/data_depot.csv')
-data_client_index = pd.read_csv('data/data_clients.csv')
 
 
-
-with open('data/distance_matrix.pickle', 'rb') as handle:
+with open(os.path.join(parent_dir,'data/distance_matrix.pickle'), 'rb') as handle:
     distance_matrix = pickle.load(handle)
 
-with open('data/times.pickle', 'rb') as handle:
+with open(os.path.join(parent_dir,'data/times.pickle'), 'rb') as handle:
     times = pickle.load(handle)
 
 
@@ -57,11 +60,11 @@ V_moy = 60
 
 b = data_client_index['b']
 a = data_client_index['a']
-d = data_client_index['d']
+d = data_client_index['d'] 
 d_depot = data_depot['DISTANCE_KM']
 t_depot = 480.0+d + d_depot/V_moy
 
-P_clients  = np.array([[int(a[j] <= a[i] + C[i,j]+ ( a[i] + C[i,j])*0.1 and b[j]>=b[i]+C[i,j]-( b[i] + C[i,j])*0.1) for j in range(n)] for i in range(n)])
+P_clients  = np.array([[int(a[j] <= ( a[i] + C[i,j])*1.2 and b[j]>=( b[i] + C[i,j])*0.8) for j in range(n)] for i in range(n)])
 
 P_depot = np.array([int(t_depot[j] >= a[j] and t_depot[j]<= b[j]-d[j]) for j in range(n)] )##############################################
 
@@ -146,7 +149,7 @@ def generate_solution(reserved_list) :
         #P = np.array([int(bool(condition_valid(t,i,j)[0]) and j not in solution1) for j in range(data_depot.shape[0])])
         P = np.array([int(bool(condition_valid(t,i,j)[0])) for j in range(data_depot.shape[0])])
 
-        if P.sum() == 0 : 
+        if P.sum() == 0 or k>15: 
             break
         
         if get_random_1_index(P,solution1+reserved_list)==None : 
@@ -277,7 +280,7 @@ def cout_fonction(X):
         
         cout = cout+c
 
-    return K + cout
+    return 1000*K + cout
 
 
 def valid_condition(route):
@@ -323,7 +326,7 @@ def code_to_X(code):
         #P = np.array([int(bool(condition_valid(t,i,j)[0]) and j not in solution1) for j in range(data_depot.shape[0])])
         P = np.array([int(bool(condition_valid(t,i,j)[0] and j not in solution)) for j in range(data_depot.shape[0])])
         
-        if P.sum() == 0 :
+        if P.sum() == 0 or k>15:
             #print(len(solution))
             if  len(solution)== len(code):
                 K.append(solution1)
@@ -387,7 +390,7 @@ def code_to_X2(code):
         P = np.array([P_clients[i,j]*int(j not in solution)  for j in range(data_depot.shape[0])])
 
 
-        if P.sum() == 0 :
+        if P.sum() == 0 or k>15 :
             #print(len(solution))
             if  len(solution)== len(code):
                 K.append(solution1)
