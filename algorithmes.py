@@ -261,9 +261,9 @@ def recuit_simule(initial_state,  temperature_initiale=1.0, temperature_finale=1
             current_energy = new_energy
 
         # Mettre à jour la meilleure solution trouvée jusqu'à présent
-        if current_energy < best_energy:
-            best_state = current_state
-            best_energy = current_energy
+    
+        best_state = current_state
+        best_energy = current_energy
 
         temperature *= alpha
         history.append(best_energy)
