@@ -222,29 +222,28 @@ def get_route_version2(list_client, time_window, Q):
 
 #########################################################################################
 
-def Voisinnage(T):
-    """
-    Cette fonction échange deux éléments de la liste de manière aléatoire.
-    """
-    n = len(T)
-    i = np.random.randint(n)
-    j = np.random.randint(n)
-    T[j] = i
-    T[i] = j
-    return(T)
+def Voisinnage(solution):
+    voisin = solution.copy()
+    i = random.randint(0, len(solution) - 1)  # Sélection d'un élément au hasard
+    j = random.randint(0, len(solution) - 1)  # Sélection d'un autre élément au hasard
+    voisin[i], voisin[j] = voisin[j], voisin[i]  # Échange des deux éléments
+    return voisin
+
+
 
 def recuit_simule(initial_state,  temperature_initiale=1.0, temperature_finale=1e-8, alpha=0.99):
     """
     Implémente l'algorithme de recuit simulé pour résoudre le problème de VRP.
     """
-    history = []
+    
     current_state = initial_state
     current_energy = cout(get_route_version2(current_state,time_window,Q))
     best_state = current_state
     best_energy = current_energy
     temperature = temperature_initiale
     i=0
-    bete=1
+    history_sol=[best_state]
+    history = [best_energy]
     while temperature > temperature_finale:
         # Générer une nouvelle solution voisine
         new_state =  Voisinnage(current_state.copy())
@@ -267,9 +266,12 @@ def recuit_simule(initial_state,  temperature_initiale=1.0, temperature_finale=1
 
         temperature *= alpha
         history.append(best_energy)
+        history_sol.append(best_state)
 
     # Retourner la meilleure solution trouvée
-    return best_state, best_energy, history
+    indice = history.index(min(history))
+    return history_sol[indice] , history[indice],history
+     
 
 ############################################################################################
 
@@ -357,7 +359,7 @@ def genetique(population, taux_mutation, max_iterations):
                 best_cout = cout_k
                 best_element = population[k]
 
-    return best_element, best_cout, history
+    return best_element, best_cout, history , population
 
 ########################################################################################
 
@@ -374,10 +376,13 @@ def voisinage(solution):
 # Définition de l'algorithme Tabou
 def tabou(liste_initiale, taille_tabou, max_iterations,n_voisin):
     
-    history = [] # tableau qui stocke la meilleure valeur de chaque itération
+     
     meilleure_solution = liste_initiale # la meilleure solution trouvée jusqu'à présent
     meilleure_valeur = cout(get_route_version2(meilleure_solution,time_window,Q)) # la valeur de la meilleure solution
+    history_sol=[meilleure_solution]
     liste_tabou = [] # la liste tabou pour stocker les solutions interdites
+    history = [meilleure_valeur] # tableau qui stocke la meilleure valeur de chaque itération
+
     
     for i in range(max_iterations):
         
@@ -413,9 +418,11 @@ def tabou(liste_initiale, taille_tabou, max_iterations,n_voisin):
             
         # ajout de la meilleure valeur à l'historique
         history.append(meilleure_valeur)
-        
+        history_sol.append(meilleure_solution)
+
     # retourne la meilleure solution trouvée, sa valeur et l'historique des meilleures valeurs
-    return meilleure_solution, meilleure_valeur , history
+    indice = history.index(min(history))
+    return history_sol[indice] , history[indice] , history
 
 
 #####################################################################################################
