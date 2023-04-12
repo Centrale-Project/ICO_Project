@@ -242,8 +242,8 @@ def recuit_simule(initial_state,  temperature_initiale=1.0, temperature_finale=1
     best_energy = current_energy
     temperature = temperature_initiale
     i=0
-    history_sol=[best_state]
-    history = [best_energy]
+    history_sol=[]
+    history = []
     while temperature > temperature_finale:
         # Générer une nouvelle solution voisine
         new_state =  Voisinnage(current_state.copy())
@@ -251,16 +251,16 @@ def recuit_simule(initial_state,  temperature_initiale=1.0, temperature_finale=1
         delta_energy = new_energy - current_energy
         if i==0:
             # Calculer le paramètre beta pour la loi de Boltzmann
-            beta = abs(- delta_energy / (temperature * math.log(0.66)))
+            beta = abs(1/ (5 * math.log(0.66)))
             i=1
 
         # Accepter ou non la nouvelle solution
-        if delta_energy < 0 or math.exp(-delta_energy / beta*temperature) <random.random():
+        if delta_energy < 0 or math.exp(-1 / (beta*temperature)) >random.random():
             current_state = new_state
             current_energy = new_energy
 
         # Mettre à jour la meilleure solution trouvée jusqu'à présent
-    
+         
         best_state = current_state
         best_energy = current_energy
 
