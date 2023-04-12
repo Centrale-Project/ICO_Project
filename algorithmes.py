@@ -251,7 +251,7 @@ def recuit_simule(initial_state,  temperature_initiale=1.0, temperature_finale=1
         delta_energy = new_energy - current_energy
         if i==0:
             # Calculer le paramètre beta pour la loi de Boltzmann
-            beta = abs(- delta_energy / (temperature * math.log(0.66)))
+            beta = abs(- delta_energy / (temperature * math.log(0.66)))+1
             i=1
 
         # Accepter ou non la nouvelle solution
