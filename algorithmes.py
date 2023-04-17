@@ -14,6 +14,7 @@ import pickle
 import os 
 import sys
 import math
+import itertools
 
 ##############################################################################################
 parent_dir = sys.path[0]
@@ -222,12 +223,15 @@ def get_route_version2(list_client, time_window, Q):
 
 #########################################################################################
 
-def Voisinnage(solution):
+def Voisinnage(solution_route):
+    solution = list(itertools.chain.from_iterable(solution_route))
     voisin = solution.copy()
     i = random.randint(0, len(solution) - 1)  # Sélection d'un élément au hasard
     j = random.randint(0, len(solution) - 1)  # Sélection d'un autre élément au hasard
     voisin[i], voisin[j] = voisin[j], voisin[i]  # Échange des deux éléments
-    return voisin
+
+    return get_route_version2(voisin,time_window, Q)
+
 
 
 
@@ -237,23 +241,20 @@ def recuit_simule(initial_state,  temperature_initiale=1.0, temperature_finale=1
     """
     
     current_state = initial_state
-    current_energy = cout(get_route_version2(current_state,time_window,Q))
+    current_energy = cout(current_state)
     best_state = current_state
     best_energy = current_energy
     temperature = temperature_initiale
-    i=0
+    # Calculer le paramètre beta pour la loi de Boltzmann
+    beta = abs(1/ (5 * math.log(0.66)))
+
     history_sol=[]
     history = []
     while temperature > temperature_finale:
         # Générer une nouvelle solution voisine
         new_state =  Voisinnage(current_state.copy())
-        new_energy = cout(get_route_version2(new_state,time_window,Q))
+        new_energy = cout(new_state)
         delta_energy = new_energy - current_energy
-        if i==0:
-            # Calculer le paramètre beta pour la loi de Boltzmann
-            beta = abs(1/ (5 * math.log(0.66)))
-            i=1
-
         # Accepter ou non la nouvelle solution
         if delta_energy < 0 or math.exp(-1 / (beta*temperature)) >random.random():
             current_state = new_state
@@ -284,8 +285,13 @@ def selection(Couts, taille_tournoi):
 # Définition de la fonction de croisement à un point
 import random
 
-def croisement(parent1, parent2):
+def croisement(parent1_route, parent2_route):
     # Point de croisement aléatoire
+    parent1 = list(itertools.chain.from_iterable(parent1_route))
+    parent2 = list(itertools.chain.from_iterable(parent2_route))
+     
+
+
     croisement_point = random.randint(1, len(parent1) - 1)
 
     # Croisement
@@ -308,12 +314,12 @@ def croisement(parent1, parent2):
         for i in range(len(enfant_r2)):
             enfant2[enfant2.index(enfant_r2[i])],enfant1[enfant1.index(enfant_r1[i])] = enfant_r1[i] , enfant_r2[i]
     
-    return enfant1, enfant2
+    return get_route_version2(enfant1,time_window, Q), get_route_version2(enfant2,time_window, Q)
 
 
 # Définition de la fonction de mutation
-def mutation(solution, taux_mutation):
-
+def mutation(solution_route, taux_mutation):
+    solution = list(itertools.chain.from_iterable(solution_route))
     if random.random() < taux_mutation : 
 
         n = len(solution)
@@ -322,7 +328,7 @@ def mutation(solution, taux_mutation):
         solution[j],solution[i] = solution[i],solution[j] # Échange de la position des éléments i et j dans la solution
     
 
-    return(solution)
+    return(get_route_version2(solution,time_window, Q))
 
 def genetique(population, taux_mutation, max_iterations):
     # Initialisation des variables
@@ -334,7 +340,7 @@ def genetique(population, taux_mutation, max_iterations):
     # Boucle principale de l'algorithme génétique
     for i in range(max_iterations):
         # Calcul des coûts pour chaque élément de la population
-        Couts = {k: cout(get_route_version2(population[k], time_window, Q)) for k in range(taille_population)}
+        Couts = {k: cout(population[k]) for k in range(taille_population)}
         
         # Sélection des parents pour la reproduction
         parents = [population[selection(Couts, 2)] for j in range(taille_population)]
@@ -354,31 +360,35 @@ def genetique(population, taux_mutation, max_iterations):
         
         # Mise à jour du meilleur coût et de l'élément associé
         for k in range(taille_population):
-            cout_k = cout(get_route_version2(population[k], time_window, Q))
+            cout_k = cout(population[k])
             if cout_k < best_cout:
                 best_cout = cout_k
                 best_element = population[k]
 
     return best_element, best_cout, history , population
 
+
 ########################################################################################
 
 import random
 
 # Définition de la fonction de voisinage
-def voisinage(solution):
+def voisinage(solution_route):
+
+    solution = list(itertools.chain.from_iterable(solution_route))
     voisin = solution.copy()
     i = random.randint(0, len(solution) - 1)  # Sélection d'un élément au hasard
     j = random.randint(0, len(solution) - 1)  # Sélection d'un autre élément au hasard
     voisin[i], voisin[j] = voisin[j], voisin[i]  # Échange des deux éléments
-    return voisin
+
+    return get_route_version2(voisin,time_window, Q)
 
 # Définition de l'algorithme Tabou
 def tabou(liste_initiale, taille_tabou, max_iterations,n_voisin):
     
      
     meilleure_solution = liste_initiale # la meilleure solution trouvée jusqu'à présent
-    meilleure_valeur = cout(get_route_version2(meilleure_solution,time_window,Q)) # la valeur de la meilleure solution
+    meilleure_valeur = cout(meilleure_solution) # la valeur de la meilleure solution
     history_sol=[meilleure_solution]
     liste_tabou = [] # la liste tabou pour stocker les solutions interdites
     history = [meilleure_valeur] # tableau qui stocke la meilleure valeur de chaque itération
@@ -393,14 +403,16 @@ def tabou(liste_initiale, taille_tabou, max_iterations,n_voisin):
             # Si le voisin est dans la liste tabou, on en génère un autre
             while voisin in liste_tabou:
                 voisin = voisinage(meilleure_solution)
+                
 
             if i==0:
                 # si c'est le premier voisin, on initialise la meilleure valeur avec celle-ci
-                valeur_meilleur_voisin = cout(get_route_version2(voisin,time_window,Q))
+                valeur_meilleur_voisin = cout(voisin)
                 meilleur_voisin = voisin
+                 
             else:
                 # sinon, on compare avec la valeur du voisin précédent
-                s = cout(get_route_version2(voisin,time_window,Q))
+                s = cout(voisin)
                 if s<valeur_meilleur_voisin:
                     meilleur_voisin = voisin
                     valeur_meilleur_voisin = s
@@ -423,6 +435,7 @@ def tabou(liste_initiale, taille_tabou, max_iterations,n_voisin):
     # retourne la meilleure solution trouvée, sa valeur et l'historique des meilleures valeurs
     indice = history.index(min(history))
     return history_sol[indice] , history[indice] , history
+
 
 
 #####################################################################################################
