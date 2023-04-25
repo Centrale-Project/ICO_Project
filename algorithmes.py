@@ -145,14 +145,14 @@ def cout(global_route):
     # Pour chaque route dans le global_route
     for route in global_route:
         # Calcul du coût pour aller du dépôt jusqu'au premier client
-        cout_depot_depart = CUSTOMER_DELIVERY_SERVICE_DISTANCE_FROM_DEPOT[route[0]]
+        #cout_depot_depart = CUSTOMER_DELIVERY_SERVICE_DISTANCE_FROM_DEPOT[route[0]]
         # Calcul du coût pour aller du dernier client jusqu'au dépôt
-        cout_depot_retour = CUSTOMER_DELIVERY_SERVICE_DISTANCE_FROM_DEPOT[route[-1]]
+        #cout_depot_retour = CUSTOMER_DELIVERY_SERVICE_DISTANCE_FROM_DEPOT[route[-1]]
         # Calcul de la somme des distances entre chaque client de la route
         cout_route = sum([distance_matrix[route[i],route[i+1]] for i in range(len(route)-1)])
         
         # Ajout du coût de la route à la variable cout
-        cout = cout + cout_route + cout_depot_retour + cout_depot_depart
+        cout = cout + cout_route 
 
     # Retourne la somme de tous les coûts plus le nombre de voitures utilisées
     return(cout+len(global_route))
@@ -365,8 +365,8 @@ def genetique(population, taux_mutation, max_iterations):
                 best_cout = cout_k
                 best_element = population[k]
 
-    return best_element, best_cout, history , population
-
+    indice = history.index(min(history))
+    return best_element,history[indice] , history , population
 
 ########################################################################################
 
@@ -386,7 +386,7 @@ def voisinage(solution_route):
 # Définition de l'algorithme Tabou
 def tabou(liste_initiale, taille_tabou, max_iterations,n_voisin):
     
-     
+
     meilleure_solution = liste_initiale # la meilleure solution trouvée jusqu'à présent
     meilleure_valeur = cout(meilleure_solution) # la valeur de la meilleure solution
     history_sol=[meilleure_solution]
