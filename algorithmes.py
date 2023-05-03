@@ -3,12 +3,11 @@ from os import listdir
 from os.path import isfile, join
 import numpy as np
 import random
-import scipy 
+ 
 from scipy.spatial.distance import pdist , cdist
 
-import matplotlib.pyplot as plt
- 
-from math import sin, cos, sqrt, atan2, radians
+
+import copy
  
 import pickle
 import os 
@@ -25,7 +24,7 @@ data_client_index = pd.read_csv(os.path.join(parent_dir, 'data/data_clients.csv'
 
 nombre_client = len(data_client_index)
 
-with open('distance_matrix.pickle', 'rb') as handle:
+with open('data/distance_matrix.pickle', 'rb') as handle:
     distance_matrix = pickle.load(handle)
 
 with open(os.path.join(parent_dir,'data/times.pickle'), 'rb') as handle:
@@ -41,104 +40,13 @@ TOTAL_WEIGHT_KG = data_client_index['TOTAL_WEIGHT_KG'].values
 CUSTOMER_DELIVERY_SERVICE_TIME_FROM_DEPOT = data_depot['TIME_DISTANCE_MIN'].values
 CUSTOMER_DELIVERY_SERVICE_DISTANCE_FROM_DEPOT = data_depot['DISTANCE_KM'].values
 
-Q = 5000
-V_moy=60
-time_window = 950
-
-######################################################################################
-
-def get_route_by_car(client_disponible, Q, V_moy, time_window):
-    """
-    Cette fonction prend en entrée les clients disponibles, la capacité de chaque véhicule, la vitesse moyenne des véhicules,
-    et la fenêtre de temps pour la livraison des clients.
-    Elle retourne la liste ordonnée des clients visités par le véhicule, en respectant les contraintes de capacité
-    et de fenêtre de temps.
-    """
-    solution = []
-    t = 480 # heure de départ du véhicule depuis le dépôt (ici, 8h du matin)
-    total_weight = 0 # poids total des colis livrés jusqu'à présent
-    i=0
-
-    client_courant = 0
-    client_potentiel = client_disponible
-
-    # chosir le client le plus proche de depot
-    client_suivant = random.choice(client_potentiel)
-
-    # ajouter le temps de service du client et le temps de trajet jusqu'au client
-    t = t +  CUSTOMER_DELIVERY_SERVICE_TIME_FROM_DEPOT[client_suivant] + CUSTOMER_DELIVERY_SERVICE_TIME[client_suivant]
-    total_weight = total_weight+TOTAL_WEIGHT_KG[client_suivant]
-    
-    # vérifier si le véhicule est encore en mesure de livrer le colis et si la livraison respecte la fenêtre de temps du client
-    if total_weight<Q and t<time_window:
-        solution.append(client_suivant)
-    
-    # retirer le client traité de la liste des clients disponibles
-    client_disponible.remove(client_suivant)
-
-    client_courant = client_suivant
-    
-    # liste des clients potentiellement livrables en respectant les contraintes
-    client_potentiel = [client for client in client_disponible if  t+distance_matrix[client_courant,client]/V_moy < time_window and total_weight+TOTAL_WEIGHT_KG[client]<Q]
-    i=1
-    
-    while len(client_potentiel)>0:
-        
-        # choisir un client parmi la liste des clients potentiellement livrables
-        client_suivant = random.choice(client_potentiel)
-         
-        # ajouter le client à la solution et le retirer de la liste des clients disponibles
-        solution.append(client_suivant)
-        client_disponible.remove(client_suivant)
-
-        # ajouter le temps de service du client et le temps de trajet jusqu'au client
-        t = t + distance_matrix[client_courant,client_suivant]/V_moy + CUSTOMER_DELIVERY_SERVICE_TIME[client_suivant]
-        total_weight = total_weight+TOTAL_WEIGHT_KG[client_suivant]
-        client_courant = client_suivant
+Q = 5000 # capacité maximale des voitures qu'on adopté 
+V_moy=60 # vitesse moyenne des voitures qu'on adopté 
+time_window = 950 # le temps limite du livraison 
  
-        # mise à jour de la liste des clients potentiellement livrables en respectant les contraintes
-        client_potentiel = [client for client in client_disponible if  t+distance_matrix[client_courant,client]/V_moy < time_window and total_weight+TOTAL_WEIGHT_KG[client]<Q]
-        i+=1
-    
-    # retourner la solution ordonnée des clients visités par le véhicule
-    return(solution)
-
-########################################################################
-
-def get_route_version0(Q,V_moy,time_window):
-    # Liste de tous les clients disponibles
-    client_disponible = [i for i in range(len(data_client_index))]
-    
-    # Liste qui va contenir toutes les routes des voitures
-    Global_route = []
-    
-    # Variable pour numéroter les voitures
-    k=0
-    
-    # Tant qu'il y a encore des clients disponibles
-    while len(client_disponible)>0:
-        
-        # On récupère la route optimale pour une voiture
-        route_by_car = get_route_by_car(client_disponible,Q,V_moy,time_window)
-        
-        # On ajoute la route à la liste des routes des voitures
-        Global_route.append(route_by_car)
-        
-        # On retire les clients de la route de la liste des clients disponibles
-        client_disponible = [client for client in  client_disponible if client not in route_by_car]
-        
-        # On incrémente le compteur de voitures
-        k+=1
-    
-    # On affiche le nombre de voitures utilisées
-    print('nombre des voitures utilisées ',len(Global_route))
-    
-    # On retourne la liste des routes des voitures
-    return(Global_route)
-
 #####################################################################
 
-def cout(global_route):
+def cout(global_route,w = 1):
     # Initialisation du coût à 0
     cout = 0
     
@@ -155,69 +63,39 @@ def cout(global_route):
         cout = cout + cout_route 
 
     # Retourne la somme de tous les coûts plus le nombre de voitures utilisées
-    return(cout+len(global_route))
+    return(cout+w * len(global_route))
 
 ######################################################################
-
-def get_route_version1(list_client, time_window, Q):
-    Global_route = []
-    client_numbre = len(list_client)
-    client_visited = 0
-
-    while client_visited < client_numbre:
-        # clients disponibles pour la tournée
-        client_disponible = list_client[client_visited:]
-        route_by_car = []
-        # heure de départ depuis le dépôt
-        t = 480 + CUSTOMER_DELIVERY_SERVICE_TIME_FROM_DEPOT[client_disponible[0]] + CUSTOMER_DELIVERY_SERVICE_TIME[client_disponible[0]]
-        # poids total des colis dans le véhicule
-        weight = TOTAL_WEIGHT_KG[client_disponible[0]]
-
-        i = 0
-        # Tant que la tournée n'est pas terminée et que le poids ne dépasse pas la limite autorisée
-        while t < time_window and weight < Q:
-            # Ajouter le client suivant à la tournée
-            route_by_car.append(client_disponible[i])
-            i += 1
-            if i >= len(client_disponible):
-                break
-            # Mise à jour de l'heure d'arrivée chez le client suivant et du poids total du véhicule
-            t = t + distance_matrix[client_disponible[i-1],client_disponible[i]] / V_moy + CUSTOMER_DELIVERY_SERVICE_TIME[client_disponible[i]]
-            weight += TOTAL_WEIGHT_KG[client_disponible[i]]
-
-        client_visited += i
-        # Ajouter la tournée complète à la liste des tournées globales
-        Global_route.append(route_by_car)
-
-    return(Global_route)
-
-###################################################################################
-
-def get_route_version2(list_client, time_window, Q):
-    # Initialize list with the first stop as depot
-    stops = [0]
-    
+ 
+def get_route(list_client,time_window,Q):
+    # Initialisation de la liste des arrêts de chaque voiture avec le dépôt
+    arret = [0]
     i = 0
-    while i < len(list_client):
-        # Initialize weight and time
+    # Tant qu'il reste des clients à visiter
+    while i<len(list_client):
+        # Poids du colis du client courant
         weight = TOTAL_WEIGHT_KG[list_client[i]]
-        time = 480 + distance_matrix[0][list_client[i]] + CUSTOMER_DELIVERY_SERVICE_TIME[list_client[i]]
-        
-        # Loop through clients until capacity or time window is reached
-        while time < time_window and weight < Q:
+        # Temps pour aller du dépôt au client courant
+        time = 480 + matrice_temps_Cij[0, list_client[i]+1]
+
+        # Tant que la fenêtre de temps n'est pas dépassée et que la capacité n'est pas dépassée
+        while time < time_window and weight < Q: 
             i += 1
+            # Si on a visité tous les clients, on sort de la boucle
             if i > len(list_client)-1:
                 break
-            # Update time and weight
-            time += distance_matrix[list_client[i-1]][list_client[i]] / V_moy + CUSTOMER_DELIVERY_SERVICE_TIME[list_client[i]]
+            # On ajoute le temps pour aller du client précédent au client courant
+            time += matrice_temps_Cij[list_client[i-1]+1, list_client[i]+1]
+            # On ajoute le poids du colis du client courant
             weight += TOTAL_WEIGHT_KG[list_client[i]]
              
-        # Append the index of the last client visited in this loop to stops list
-        stops.append(i)
+        # On ajoute l'indice du dernier client visité à la liste des arrêts
+        arret.append(i)
       
-    # Create routes using the stops list
-    Global_route = [list_client[stops[k]:stops[k+1]] for k in range(len(stops)-1)]
+    # On crée la liste des routes en utilisant les indices des arrêts
+    Global_route = [list_client[arret[k]:arret[k+1]] for k in range(len(arret)-1)]
     
+    # On retourne la liste des routes
     return Global_route
 
 
@@ -230,9 +108,7 @@ def Voisinnage(solution_route):
     j = random.randint(0, len(solution) - 1)  # Sélection d'un autre élément au hasard
     voisin[i], voisin[j] = voisin[j], voisin[i]  # Échange des deux éléments
 
-    return get_route_version2(voisin,time_window, Q)
-
-
+    return get_route(voisin,time_window, Q)
 
 
 def recuit_simule(initial_state,  temperature_initiale=1.0, temperature_finale=1e-8, alpha=0.99):
@@ -276,22 +152,18 @@ def recuit_simule(initial_state,  temperature_initiale=1.0, temperature_finale=1
 
 ############################################################################################
 
-import copy
+ 
 # Définition de la fonction de sélection par tournoi
 def selection(Couts, taille_tournoi):
     participants = random.sample(Couts.keys(), taille_tournoi) # Sélection de "taille_tournoi" éléments au hasard dans le dictionnaire "Couts"
     return min(participants, key=lambda x:Couts[x] ) # Retourne la clé ayant la plus petite valeur de coût dans "Couts"
 
 # Définition de la fonction de croisement à un point
-import random
-
 def croisement(parent1_route, parent2_route):
     # Point de croisement aléatoire
     parent1 = list(itertools.chain.from_iterable(parent1_route))
     parent2 = list(itertools.chain.from_iterable(parent2_route))
      
-
-
     croisement_point = random.randint(1, len(parent1) - 1)
 
     # Croisement
@@ -314,7 +186,7 @@ def croisement(parent1_route, parent2_route):
         for i in range(len(enfant_r2)):
             enfant2[enfant2.index(enfant_r2[i])],enfant1[enfant1.index(enfant_r1[i])] = enfant_r1[i] , enfant_r2[i]
     
-    return get_route_version2(enfant1,time_window, Q), get_route_version2(enfant2,time_window, Q)
+    return get_route(enfant1,time_window, Q), get_route(enfant2,time_window, Q)
 
 
 # Définition de la fonction de mutation
@@ -328,7 +200,7 @@ def mutation(solution_route, taux_mutation):
         solution[j],solution[i] = solution[i],solution[j] # Échange de la position des éléments i et j dans la solution
     
 
-    return(get_route_version2(solution,time_window, Q))
+    return(get_route(solution,time_window, Q))
 
 def genetique(population, taux_mutation, max_iterations):
     # Initialisation des variables
@@ -370,8 +242,6 @@ def genetique(population, taux_mutation, max_iterations):
 
 ########################################################################################
 
-import random
-
 # Définition de la fonction de voisinage
 def voisinage(solution_route):
 
@@ -381,7 +251,7 @@ def voisinage(solution_route):
     j = random.randint(0, len(solution) - 1)  # Sélection d'un autre élément au hasard
     voisin[i], voisin[j] = voisin[j], voisin[i]  # Échange des deux éléments
 
-    return get_route_version2(voisin,time_window, Q)
+    return get_route(voisin,time_window, Q)
 
 # Définition de l'algorithme Tabou
 def tabou(liste_initiale, taille_tabou, max_iterations,n_voisin):
@@ -436,8 +306,4 @@ def tabou(liste_initiale, taille_tabou, max_iterations,n_voisin):
     indice = history.index(min(history))
     return history_sol[indice] , history[indice] , history
 
-
-
-#####################################################################################################
-
-
+ 
